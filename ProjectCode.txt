@@ -1,0 +1,153 @@
+section .text
+    global _start
+
+_start:
+    mov esi, plaintext          
+    mov edi, key                
+    mov ebx, enc_text           
+    mov ecx, 5                  ; length of the message
+    
+encrypt_loop:
+    call xor_bytes
+    loop encrypt_loop           ; repeat for all bytes in the encryption loop
+
+    ; XOR Decryption 
+    mov esi, enc_text           
+    mov edi, key                
+    mov ebx, dec_text           
+    mov ecx, 5                  ; length of the enc_text
+    
+decrypt_loop:
+    call xor_bytes
+    loop decrypt_loop           ; repeat for all bytes in the decryption loop
+
+    call open_file
+
+    ; write headers and data to output.txt
+
+    ; write "Plain text: " header
+    mov eax, 4                  ; sys_write
+    mov ebx, [outfile]          
+    mov ecx, plaintext_textname   ; buffer
+    mov edx, 12                 ; length of "Plain text: "
+    int 0x80                    
+
+    ; write plaintext
+    mov eax, 4                  ; sys_write
+    mov ebx, [outfile]          
+    mov ecx, plaintext          ; buffer
+    mov edx, 5                  ; length
+    int 0x80                    
+
+    ; write newline
+    call write_newline
+
+    ; write "Key: " header
+    mov eax, 4                  ; sys_write
+    mov ebx, [outfile]      
+    mov ecx, keytext            ; buffer
+    mov edx, 5                  ; length of "Key: "
+    int 0x80                    
+
+    ; write key
+    mov eax, 4                  ; sys_write
+    mov ebx, [outfile]      
+    mov ecx, key                ; buffer
+    mov edx, 5                  ; length
+    int 0x80                    
+
+    ; write newline
+    call write_newline
+
+    ; write "Encrypted text: " header
+    mov eax, 4                       ; sys_write
+    mov ebx, [outfile]           
+    mov ecx, enc_textname            ; buffer
+    mov edx, 17                      ; length of "Encrypted text: "
+    int 0x80                         
+
+    ; write encrypted text
+    mov eax, 4                  ; sys_write
+    mov ebx, [outfile]      
+    mov ecx, enc_text           ; buffer
+    mov edx, 5                  ; length
+    int 0x80                    
+
+    ; write newline
+    call write_newline
+
+    ; write "Decrypted text: " header
+    mov eax, 4                       ; sys_write
+    mov ebx, [outfile]              
+    mov ecx, dec_textname            ; buffer
+    mov edx, 17                      ; length of "Decrypted text: "
+    int 0x80                         
+
+    ; write decrypted plaintext
+    mov eax, 4                  ; sys_write
+    mov ebx, [outfile]          
+    mov ecx, dec_text           ; buffer
+    mov edx, 5                  ; length
+    int 0x80                    
+
+    ; write newline
+    call write_newline
+
+    ; close file
+    mov eax, 6                  ; sys_close
+    mov ebx, [outfile]          
+    int 0x80                    
+
+    mov eax, 1                  ; sys_exit
+    int 0x80                    
+
+xor_bytes:
+    mov al, [esi]               ; load byte
+    xor al, [edi]               ; XOR byte
+    mov [ebx], al               ; store result
+    call increment_pointers     ; increment pointers
+    ret
+
+
+open_file:
+    mov eax, 5                  ; sys_open
+    lea ebx, [file]         
+    mov ecx, 1                  
+    mov edx, 0644               ; permissions
+    int 0x80                    
+    mov [outfile], eax          ; store file handle
+    ret                         
+
+increment_pointers:
+    inc esi                     ; increment ESI
+    inc edi                     ; increment EDI
+    inc ebx                     ; increment EBX
+    ret                         
+
+write_newline:
+    mov eax, 4                  ; sys_write
+    mov ebx, [outfile]          
+    mov ecx, newline            ; buffer
+    mov edx, 1                  ; length
+    int 0x80                    
+    ret                         
+
+
+section .data
+    plaintext db 'HELLO', 0                ; define plaintext "HELLO" + null terminator
+    key db 'world', 0                      ; define key string "world" + null terminator
+
+    enc_text db 0, 0, 0, 0, 0, 0           ; allocate 6 bytes for the encrypted text
+    dec_text db 0, 0, 0, 0, 0, 0           ; allocate 6 bytes for the decrypted text
+    
+    newline db 0x0A, 0                     
+    file db 'output.txt', 0                ; filename "output.txt"
+
+    ; define the headers
+    plaintext_textname db 'Plain text: ', 0  
+    keytext db 'Key: ', 0                  
+    enc_textname db 'Encrypted text: ', 0  
+    dec_textname db 'Decrypted text: ', 0  
+    
+section .bss
+    outfile resd 1                         ; reserve 4 bytes of space
